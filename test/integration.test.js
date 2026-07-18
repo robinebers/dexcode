@@ -83,7 +83,7 @@ test("routes classifiers like normal models, GPT to Codex, and stays quiet", asy
   t.after(() => new Promise((resolve) => anthropic.close(resolve)));
   t.after(() => new Promise((resolve) => codex.close(resolve)));
 
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dexcode-test-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "situationship-test-"));
   fs.writeFileSync(
     path.join(home, "auth.json"),
     JSON.stringify({ tokens: { access_token: "test-token", account_id: "acct" } }),
@@ -258,7 +258,7 @@ test("routes classifiers like normal models, GPT to Codex, and stays quiet", asy
 });
 
 test("fails fast at startup when Codex auth is missing", async (t) => {
-  const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), "dexcode-noauth-"));
+  const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), "situationship-noauth-"));
   const previousHome = process.env.CODEX_HOME;
   process.env.CODEX_HOME = emptyHome;
   t.after(() => {

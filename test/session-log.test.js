@@ -7,7 +7,7 @@ import path from "node:path";
 import { createSessionLogger, pruneLogDirectory, sanitizeError } from "../lib/session-log.js";
 
 test("writes private metadata-only session logs", async (t) => {
-  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "dexcode-logs-"));
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "situationship-logs-"));
   t.after(() => fs.rmSync(logDir, { recursive: true, force: true }));
 
   const logger = await createSessionLogger({ logDir, rotationSize: "1K", maxTotalBytes: 4096 });
@@ -29,7 +29,7 @@ test("writes private metadata-only session logs", async (t) => {
 });
 
 test("rotates a long session and enforces its total budget", async (t) => {
-  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "dexcode-rotate-"));
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "situationship-rotate-"));
   t.after(() => fs.rmSync(logDir, { recursive: true, force: true }));
   const logger = await createSessionLogger({ logDir, rotationSize: "1K", maxTotalBytes: 2048 });
   for (let index = 0; index < 100; index += 1) {
@@ -44,7 +44,7 @@ test("rotates a long session and enforces its total budget", async (t) => {
 });
 
 test("prunes oldest inactive logs to the directory budget", async (t) => {
-  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "dexcode-prune-"));
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "situationship-prune-"));
   t.after(() => fs.rmSync(logDir, { recursive: true, force: true }));
   const oldPath = path.join(logDir, "old.jsonl");
   const newPath = path.join(logDir, "new.jsonl");

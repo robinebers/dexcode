@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * npx dexcode  — free port → Dexcode router → claude → teardown
+ * npx situationship  — free port → Situationship router → claude → teardown
  *
- *   npx dexcode
- *   npx dexcode -c
- *   npx dexcode --router-only
+ *   npx situationship
+ *   npx situationship -c
+ *   npx situationship --router-only
  */
 import { spawn, execFileSync } from "node:child_process";
 import { startRouter } from "../lib/router.js";
@@ -47,7 +47,7 @@ function withDefaults(argv) {
   if (!has("--model") && !process.env.ANTHROPIC_MODEL) {
     out.unshift(
       "--model",
-      process.env.DEXCODE_MODEL || "fable",
+      process.env.SITUATIONSHIP_MODEL || "fable",
     );
   }
 
@@ -55,7 +55,7 @@ function withDefaults(argv) {
   if (!has("--permission-mode")) {
     out.unshift(
       "--permission-mode",
-      process.env.DEXCODE_PERMISSION_MODE || "auto",
+      process.env.SITUATIONSHIP_PERMISSION_MODE || "auto",
     );
   }
 
@@ -175,7 +175,7 @@ async function main() {
     childEnv.ANTHROPIC_CUSTOM_MODEL_OPTION_NAME || "GPT 5.6 Sol (ChatGPT)";
   childEnv.ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION =
     childEnv.ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION ||
-    "Via ChatGPT Codex (Dexcode)";
+    "Via ChatGPT Codex (Situationship)";
 
   // Avoid stale gateway discovery without deleting the user's shared cache.
   delete childEnv.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY;
@@ -206,6 +206,6 @@ async function main() {
 
 main().catch((e) => {
   const debug = ["1", "true", "yes"].includes(String(process.env.DUAL_DEBUG || "").toLowerCase());
-  console.error(debug && e?.stack ? e.stack : `dexcode: ${e?.message || e}`);
+  console.error(debug && e?.stack ? e.stack : `situationship: ${e?.message || e}`);
   process.exit(1);
 });

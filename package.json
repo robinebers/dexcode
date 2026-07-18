@@ -1,13 +1,13 @@
 {
-  "name": "dexcode",
+  "name": "situationship",
   "version": "0.1.0",
   "description": "Run OpenAI/Codex models alongside Claude models in Claude Code",
   "type": "module",
   "bin": {
-    "dexcode": "bin/dexcode.js"
+    "situationship": "bin/situationship.js"
   },
   "scripts": {
-    "check": "node --check lib/router.js && node --check lib/session-log.js && node --check bin/dexcode.js",
+    "check": "node --check lib/router.js && node --check lib/session-log.js && node --check bin/situationship.js",
     "test": "node --test",
     "prepublishOnly": "npm run check && npm test"
   },
@@ -31,12 +31,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/robinebers/dexcode.git"
+    "url": "git+https://github.com/robinebers/situationship.git"
   },
   "bugs": {
-    "url": "https://github.com/robinebers/dexcode/issues"
+    "url": "https://github.com/robinebers/situationship/issues"
   },
-  "homepage": "https://github.com/robinebers/dexcode#readme",
+  "homepage": "https://github.com/robinebers/situationship#readme",
   "dependencies": {
     "rotating-file-stream": "^3.2.9"
   }
