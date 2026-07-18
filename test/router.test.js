@@ -12,6 +12,8 @@ import {
   isAutoModeRequest,
   isClaudeModel,
   normalizeEffort,
+  stripContextWindowSuffix,
+  stripLongContextBetas,
 } from "../lib/router.js";
 
 async function* lines(events) {
@@ -45,16 +47,23 @@ test("caps GPT effort without raising lower requests", () => {
 
 test("detects and sanitizes auto-mode classifier requests", () => {
   const request = {
-    model: "gpt-5.6-sol",
+    model: "gpt-5.6-sol[1m]",
     querySource: "auto_mode",
     metadata: { query_source: "auto_mode" },
     messages: [{ role: "user", content: "classify" }],
   };
   assert.equal(isAutoModeRequest(request), true);
   const translated = classifierBody(request);
-  assert.match(translated.model, /^claude-/);
+  // Classifiers keep their requested model (routed like any other request);
+  // only the 1M-context suffix and the querySource markers are removed.
+  assert.equal(translated.model, "gpt-5.6-sol");
   assert.equal(translated.querySource, undefined);
   assert.equal(translated.metadata, undefined);
+  assert.equal(isClaudeModel(translated.model), false);
+  assert.equal(
+    classifierBody({ ...request, model: "claude-haiku-4-5-20251001[1m]" }).model,
+    "claude-haiku-4-5-20251001",
+  );
 
   assert.equal(
     isAutoModeRequest({
@@ -68,6 +77,36 @@ test("detects and sanitizes auto-mode classifier requests", () => {
     }),
     true,
   );
+});
+
+test("strips 1M-context suffixes and long-context betas", () => {
+  assert.equal(stripContextWindowSuffix("gpt-5.6-sol[1m]"), "gpt-5.6-sol");
+  assert.equal(stripContextWindowSuffix("claude-sonnet-5[1M]"), "claude-sonnet-5");
+  assert.equal(stripContextWindowSuffix("gpt-5.6-sol"), "gpt-5.6-sol");
+  assert.equal(stripContextWindowSuffix(undefined), undefined);
+
+  assert.deepEqual(
+    stripLongContextBetas({
+      "anthropic-beta": "context-1m-2025-08-07,interleaved-thinking-2025-05-14",
+      "anthropic-version": "2023-06-01",
+    }),
+    {
+      "anthropic-beta": "interleaved-thinking-2025-05-14",
+      "anthropic-version": "2023-06-01",
+    },
+  );
+  assert.deepEqual(stripLongContextBetas({ "anthropic-beta": "context-1m-2025-08-07" }), {});
+  assert.deepEqual(
+    stripLongContextBetas({ "Anthropic-Beta": ["long-context-beta", "fine-grained-tool-streaming-2025-05-14"] }),
+    { "Anthropic-Beta": "fine-grained-tool-streaming-2025-05-14" },
+  );
+
+  // The Codex translation also normalizes away the suffix.
+  const result = anthropicToCodexBody({
+    model: "gpt-5.6-sol[1m]",
+    messages: [{ role: "user", content: "classify" }],
+  });
+  assert.equal(result.model, "gpt-5.6-sol");
 });
 
 test("maps effort, limits, tool choice, tool calls, and tool results structurally", () => {

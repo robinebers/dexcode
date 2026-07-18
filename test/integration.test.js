@@ -23,12 +23,26 @@ async function jsonBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t) => {
-  const received = { anthropic: [], codex: [] };
+test("routes classifiers like normal models, GPT to Codex, and stays quiet", async (t) => {
+  const received = { anthropic: [], anthropicHeaders: [], codex: [] };
   const logged = [];
   const logger = { write: (event, fields) => logged.push({ event, ...fields }) };
   const anthropic = await listen(async (req, res) => {
-    received.anthropic.push(await jsonBody(req));
+    const body = await jsonBody(req);
+    received.anthropic.push(body);
+    received.anthropicHeaders.push(req.headers);
+    if (body.messages?.[0]?.content === "classify-fail") {
+      const data = JSON.stringify({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "long context beta is not yet available for this subscription.",
+        },
+      });
+      res.writeHead(400, { "content-type": "application/json", "content-length": Buffer.byteLength(data) });
+      res.end(data);
+      return;
+    }
     const data = JSON.stringify({
       id: "msg_classifier",
       type: "message",
@@ -51,9 +65,13 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
       res.end(data);
       return;
     }
-    received.codex.push(await jsonBody(req));
+    const body = await jsonBody(req);
+    received.codex.push(body);
+    const delta = JSON.stringify(body.input).includes("classify")
+      ? "<block>no</block>leaked-after-stop"
+      : "working";
     res.writeHead(200, { "content-type": "text/event-stream" });
-    res.write(`data: ${JSON.stringify({ type: "response.output_text.delta", delta: "working" })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "response.output_text.delta", delta })}\n\n`);
     res.write(
       `data: ${JSON.stringify({
         type: "response.completed",
@@ -74,7 +92,6 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
   process.env.ANTHROPIC_UPSTREAM = address(anthropic);
   process.env.CODEX_MODELS_URL = `${address(codex)}/models`;
   process.env.CODEX_RESPONSES_URL = `${address(codex)}/responses`;
-  process.env.CODEXCODE_CLASSIFIER_MODEL = "claude-haiku-4-5-20251001";
 
   const { startRouter } = await import(`../lib/router.js?integration=${Date.now()}`);
   let stderr = "";
@@ -91,11 +108,16 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
   });
   const base = `http://127.0.0.1:${router.port}`;
 
+  // A GPT-slug classifier (with the 1M suffix and beta Claude Code sends)
+  // routes to Codex, not to a forced Anthropic model.
   const classifierResponse = await fetch(`${base}/v1/messages`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "anthropic-beta": "context-1m-2025-08-07",
+    },
     body: JSON.stringify({
-      model: "gpt-5.6-sol",
+      model: "gpt-5.6-sol[1m]",
       querySource: "auto_mode",
       stream: false,
       max_tokens: 64,
@@ -104,9 +126,58 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
     }),
   });
   assert.equal(classifierResponse.status, 200);
-  assert.equal((await classifierResponse.json()).content[0].text, "<block>no</block>");
+  const classifierResult = await classifierResponse.json();
+  assert.equal(classifierResult.content[0].text, "<block>no");
+  assert.equal(classifierResult.stop_reason, "stop_sequence");
+  assert.equal(classifierResult.stop_sequence, "</block>");
+  assert.equal(received.codex[0].model, "gpt-5.6-sol");
+  assert.equal(received.codex[0].max_output_tokens, undefined);
+
+  // A Claude-model classifier still goes to Anthropic, with the 1M suffix and
+  // long-context betas stripped so restricted subscriptions don't 400.
+  const claudeClassifier = await fetch(`${base}/v1/messages`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "anthropic-beta": "context-1m-2025-08-07,interleaved-thinking-2025-05-14",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001[1m]",
+      querySource: "auto_mode",
+      stream: false,
+      max_tokens: 64,
+      stop_sequences: ["</block>"],
+      messages: [{ role: "user", content: "classify" }],
+    }),
+  });
+  assert.equal(claudeClassifier.status, 200);
+  assert.equal((await claudeClassifier.json()).content[0].text, "<block>no</block>");
   assert.equal(received.anthropic[0].model, "claude-haiku-4-5-20251001");
   assert.equal(received.anthropic[0].querySource, undefined);
+  assert.equal(received.anthropicHeaders[0]["anthropic-beta"], "interleaved-thinking-2025-05-14");
+
+  // Classifier failures surface the upstream error body in the session log.
+  const failedClassifier = await fetch(`${base}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      querySource: "auto_mode",
+      stream: false,
+      messages: [{ role: "user", content: "classify-fail" }],
+    }),
+  });
+  assert.equal(failedClassifier.status, 400);
+  assert.match((await failedClassifier.json()).error.message, /long context beta/);
+  assert.equal(
+    logged.some(
+      (entry) =>
+        entry.event === "response" &&
+        entry.status === 400 &&
+        String(entry.errorBody || "").includes("long context beta"),
+    ),
+    true,
+  );
 
   const nativeResponse = await fetch(`${base}/v1/messages`, {
     method: "POST",
@@ -120,8 +191,8 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
   });
   assert.equal(nativeResponse.status, 200);
   await nativeResponse.json();
-  assert.equal(received.anthropic[1].model, "claude-fable-5");
-  assert.equal(received.anthropic[1].output_config.effort, "max");
+  assert.equal(received.anthropic[2].model, "claude-fable-5");
+  assert.equal(received.anthropic[2].output_config.effort, "max");
 
   const codexResponse = await fetch(`${base}/v1/messages`, {
     method: "POST",
@@ -137,8 +208,8 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
   assert.equal(codexResponse.status, 200);
   const result = await codexResponse.json();
   assert.equal(result.content[0].text, "working");
-  assert.equal(received.codex[0].reasoning.effort, "high");
-  assert.equal(received.codex[0].max_output_tokens, undefined);
+  assert.equal(received.codex[1].reasoning.effort, "high");
+  assert.equal(received.codex[1].max_output_tokens, undefined);
 
   const claudeCount = await fetch(`${base}/v1/messages/count_tokens`, {
     method: "POST",
@@ -149,8 +220,8 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
     }),
   });
   assert.equal(claudeCount.status, 200);
-  assert.equal(received.anthropic[2].model, "claude-fable-5");
-  assert.equal(received.anthropic[2].messages[0].content, "count me");
+  assert.equal(received.anthropic[3].model, "claude-fable-5");
+  assert.equal(received.anthropic[3].messages[0].content, "count me");
 
   const gptCount = await fetch(`${base}/v1/messages/count_tokens`, {
     method: "POST",
@@ -164,7 +235,7 @@ test("routes classifiers to Anthropic, GPT to Codex, and stays quiet", async (t)
   const gptCountBody = await gptCount.json();
   assert.equal(gptCountBody.estimated, true);
   assert.equal(gptCountBody.input_tokens >= 1, true);
-  assert.equal(received.anthropic.length, 3);
+  assert.equal(received.anthropic.length, 4);
 
   const malformed = await fetch(`${base}/v1/messages`, {
     method: "POST",

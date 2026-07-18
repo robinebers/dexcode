@@ -82,14 +82,14 @@ npx github:robinebers/codexcode --max-effort xhigh
 
 ## Privacy and logs
 
-Each session writes a small log file under `~/.codexcode/logs/` for debugging. It contains **metadata only**: timings, model names, request sizes. Your prompts, responses, code, and credentials are **never** logged. Old logs are automatically cleaned up (about 15 MB total).
+Each session writes a small log file under `~/.codexcode/logs/` for debugging. It contains **metadata only**: timings, model names, request sizes, and upstream API error messages (for failed requests). Your prompts, responses, code, and credentials are **never** logged. Old logs are automatically cleaned up (about 15 MB total).
 
 If you run into problems, create an issue and attach some logs so I can make it better.
 
 ## For the technically curious
 
 - The translator converts Anthropic "Messages" requests into OpenAI "Responses" requests and streams the answers back in Anthropic's format, including tool calls and images.
-- Claude Code's internal auto-mode classifier is detected and always routed to a real Anthropic model, so auto mode keeps working normally.
+- Claude Code's internal auto-mode classifier is detected and routed like any other model (GPT slugs to ChatGPT, Claude models to Anthropic). The `[1m]` context suffix and long-context betas are stripped from classifier requests, since subscriptions without the 1M-context beta would otherwise get a 400 and auto mode would fail closed.
 - Token-count requests for Claude models are forwarded to Anthropic for exact numbers; GPT models get a conservative local estimate (the ChatGPT backend has no counting endpoint).
 - It talks to the same private `chatgpt.com/backend-api/codex` interface that the Codex CLI (and many community tools) use for subscription access. Since that interface is undocumented, its behavior was reverse-engineered from the real clients; see [docs/PROTOCOL.md](docs/PROTOCOL.md) for the evidence.
 - Verify the code with `npm run check` and `npm test` (the test suite runs entirely against local fake servers).

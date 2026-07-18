@@ -163,8 +163,6 @@ async function main() {
   childEnv._CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL = "1";
   // Required for --permission-mode auto with a custom base URL / non-native path
   childEnv.CLAUDE_CODE_ENABLE_AUTO_MODE = childEnv.CLAUDE_CODE_ENABLE_AUTO_MODE || "1";
-  childEnv.CODEXCODE_CLASSIFIER_MODEL =
-    childEnv.CODEXCODE_CLASSIFIER_MODEL || "claude-haiku-4-5-20251001";
   childEnv.ANTHROPIC_DEFAULT_OPUS_MODEL =
     childEnv.ANTHROPIC_DEFAULT_OPUS_MODEL || "gpt-5.6-sol";
   childEnv.ANTHROPIC_DEFAULT_SONNET_MODEL =
