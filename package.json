@@ -1,18 +1,19 @@
 {
-  "name": "codexcode",
+  "name": "dexcode",
   "version": "0.1.0",
   "description": "Run OpenAI/Codex models alongside Claude models in Claude Code",
   "type": "module",
   "bin": {
-    "codexcode": "./bin/codexcode.js"
+    "dexcode": "./bin/dexcode.js"
   },
   "scripts": {
-    "check": "node --check lib/router.js && node --check lib/session-log.js && node --check bin/codexcode.js",
-    "test": "node --test"
+    "check": "node --check lib/router.js && node --check lib/session-log.js && node --check bin/dexcode.js",
+    "test": "node --test",
+    "prepublishOnly": "npm run check && npm test"
   },
   "files": [
     "bin",
-    "codexcode.jpg",
+    "dexcode.jpg",
     "lib",
     "docs",
     "LICENSE",
@@ -31,12 +32,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/robinebers/codexcode.git"
+    "url": "git+https://github.com/robinebers/dexcode.git"
   },
   "bugs": {
-    "url": "https://github.com/robinebers/codexcode/issues"
+    "url": "https://github.com/robinebers/dexcode/issues"
   },
-  "homepage": "https://github.com/robinebers/codexcode#readme",
+  "homepage": "https://github.com/robinebers/dexcode#readme",
   "dependencies": {
     "rotating-file-stream": "^3.2.9"
   }
