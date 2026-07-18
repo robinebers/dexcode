@@ -4,7 +4,7 @@
   "description": "Run OpenAI/Codex models alongside Claude models in Claude Code",
   "type": "module",
   "bin": {
-    "dexcode": "./bin/dexcode.js"
+    "dexcode": "bin/dexcode.js"
   },
   "scripts": {
     "check": "node --check lib/router.js && node --check lib/session-log.js && node --check bin/dexcode.js",
